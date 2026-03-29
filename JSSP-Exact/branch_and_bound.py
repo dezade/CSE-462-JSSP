@@ -350,8 +350,8 @@ def process_results(optimal, raw_result):
 # ─────────────────────────────────────────────────────────────
 
 def main():
-    json_file  = "starjob_1k.json"
-    output_csv = "result.csv"
+    json_file  = "../Data/starjob_1k.json"
+    output_csv = "results.csv"
     time_limit = 1.0
 
     print(f"Loading {json_file} ...")

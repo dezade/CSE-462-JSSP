@@ -101,7 +101,7 @@ def run_dataset(json_path, output_csv=None):
 
 def main():
 
-    json_path = "starjob_1k.json"
+    json_path = "../Data/starjob_1k.json"
 
     run_dataset(json_path, output_csv="results.csv")
 
