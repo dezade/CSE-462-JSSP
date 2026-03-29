@@ -1,0 +1,48 @@
+The scheduling algorithm uses the Most Work Remaining (MWKR) dispatching rule. At each scheduling step, the job with the maximum remaining processing time is selected and its next operation is scheduled at the earliest feasible start time considering machine and job availability. The implementation uses a priority queue to efficiently select the job with highest priority.
+
+Citation:
+
+Pinedo, M. (2016). Scheduling: Theory, Algorithms, and Systems.
+Springer.
+
+
+Pseudocode of the implementation:
+
+
+MWKR_Schedule(n, m, machines, processing)
+
+1  for each machine k
+2      machine_available[k] ← 0
+
+3  for each job j
+4      job_available[j] ← 0
+5      next_operation[j] ← 0
+6      remaining_work[j] ← sum of all processing times of job j
+
+7  Create a priority queue PQ
+8  Insert each job j into PQ with priority = remaining_work[j]
+
+9  while PQ is not empty
+
+10     j ← job with maximum remaining_work from PQ
+11     op ← next_operation[j]
+
+12     if job j has no remaining operations
+13         continue
+
+14     machine ← machines[j][op]
+15     duration ← processing[j][op]
+
+16     start_time ← max(machine_available[machine], job_available[j])
+17     finish_time ← start_time + duration
+
+18     machine_available[machine] ← finish_time
+19     job_available[j] ← finish_time
+
+20     next_operation[j] ← next_operation[j] + 1
+21     remaining_work[j] ← remaining_work[j] - duration
+
+22     if job j still has operations left
+23         insert j back into PQ with updated priority
+
+24  return max(machine_available)
