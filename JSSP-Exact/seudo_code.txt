@@ -1,0 +1,149 @@
+FUNCTION GREEDY(jobs, num_jobs, num_machines, priority_rule):
+
+    job_step[j]   ← 0 for all jobs
+    job_avail[j]  ← 0 for all jobs
+    mach_avail[m] ← 0 for all machines
+    remaining[j]  ← total processing time of job j
+
+    schedule ← empty list
+
+    total_ops ← total number of operations
+
+    FOR iter = 1 TO total_ops:
+
+        best_job ← NONE
+        best_key ← ∞
+
+        FOR each job j:
+            IF job j is finished: CONTINUE
+
+            (m, t) ← next operation of job j
+            start_time ← max(job_avail[j], mach_avail[m])
+
+            key ← compute based on priority_rule:
+                FIFO → (start_time, j)
+                SPT  → (t, start_time, j)
+                LRPT → (-remaining[j], start_time, j)
+                MOR  → (-(remaining operations), start_time, j)
+
+            IF key < best_key:
+                best_key ← key
+                best_job ← j
+
+        j ← best_job
+        (m, t) ← next operation of job j
+
+        start  ← max(job_avail[j], mach_avail[m])
+        finish ← start + t
+
+        ADD (j, m, start, finish) to schedule
+
+        UPDATE:
+            job_step[j]  += 1
+            job_avail[j]  = finish
+            mach_avail[m] = finish
+            remaining[j] -= t
+
+    makespan ← max(job_avail)
+
+    RETURN (makespan, schedule)
+
+
+FUNCTION BEST_GREEDY(jobs, num_jobs, num_machines):
+
+    best_makespan ← ∞
+    best_schedule ← NONE
+
+    FOR rule IN {FIFO, SPT, LRPT, MOR}:
+        (ms, sched) ← GREEDY(jobs, num_jobs, num_machines, rule)
+
+        IF ms < best_makespan:
+            best_makespan ← ms
+            best_schedule ← sched
+
+    RETURN (best_makespan, best_schedule)
+
+
+FUNCTION LOWER_BOUND(jobs, job_step, job_avail, mach_avail):
+
+    FOR each machine m:
+        m_remaining[m] ← 0
+
+    lb_job ← 0
+
+    FOR each job j:
+        step ← job_step[j]
+        job_remaining ← 0
+
+        FOR k = step TO end of job j:
+            (m, t) ← operation
+            m_remaining[m] += t
+            job_remaining  += t
+
+        lb_job ← max(lb_job, job_avail[j] + job_remaining)
+
+    lb_machine ← max over m of (mach_avail[m] + m_remaining[m])
+
+    RETURN max(lb_job, lb_machine)
+
+
+FUNCTION BRANCH_AND_BOUND(jobs, num_jobs, num_machines, upper_bound):
+
+    best ← upper_bound
+
+    INITIAL STATE:
+        job_step  ← all zeros
+        job_avail ← all zeros
+        mach_avail← all zeros
+
+    initial_lb ← LOWER_BOUND(...)
+
+    IF initial_lb ≥ best:
+        RETURN best
+
+    priority_queue ← empty min-heap
+    PUSH (initial_lb, initial_state) into queue
+
+    WHILE queue is not empty:
+
+        (lb, state) ← POP from queue
+
+        IF lb ≥ best:
+            CONTINUE   // prune
+
+        IF all jobs finished:
+            makespan ← max(job_avail)
+            best ← min(best, makespan)
+            CONTINUE
+
+        FOR each job j:
+            IF job j is finished: CONTINUE
+
+            (m, t) ← next operation of job j
+
+            start  ← max(job_avail[j], mach_avail[m])
+            finish ← start + t
+
+            CREATE new state:
+                nstep[j] += 1
+                nja[j]   = finish
+                nma[m]   = finish
+
+            child_lb ← LOWER_BOUND(new state)
+
+            IF child_lb < best:
+                PUSH (child_lb, new state) into queue
+
+    RETURN best
+
+
+FUNCTION SOLVE_INSTANCE(jobs):
+
+    (greedy_ms, _) ← BEST_GREEDY(...)
+
+    result ← BRANCH_AND_BOUND(
+                jobs,
+                upper_bound = greedy_ms
+             )
+
+    RETURN result
