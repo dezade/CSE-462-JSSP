@@ -58,9 +58,9 @@
 \section{Problem Description}
 
 \begin{frame}{Problem Definition}
-    % The \textbf{Job Shop Scheduling Problem (JSSP)} is a combinatorial optimization problem aiming to allocate shared resources over time to competing tasks.
+    The \textbf{Job Shop Scheduling Problem (JSSP)} is a combinatorial optimization problem aiming to allocate shared resources over time to competing tasks.
 
-    % \vspace{0.5em}
+    \vspace{0.5em}
     \begin{block}{Mathematical Formulation}
         \begin{itemize}[<+->]
             \item \textbf{Given}: A set of $N_J$ jobs $\mathcal{J} = \{J_1, \dots, J_n\}$ and $N_M$ machines $\mathcal{M} = \{M_1, \dots, M_m\}$.
@@ -164,7 +164,7 @@
 
 \begin{frame}{Existing Algorithms \& Selection}
     \small
-    \begin{tabular}{|p{0.25\textwidth}|p{0.3\textwidth}|p{0.35\textwidth}|}
+    \begin{tabular}{|p{0.2\textwidth}|p{0.35\textwidth}|p{0.35\textwidth}|}
         \hline
         \rowcolor{MyHeaderBG} \color{white}\textbf{Category} & \color{white}\textbf{Algorithm} & \color{white}\textbf{Complexity/Characteristics} \\ \hline
         \textbf{Exact} & Mixed Integer Linear Prog. & $O(2^n)$ (Manne, 1960) \\ \hline
@@ -207,29 +207,107 @@
 \end{frame}
 
 % =============================================================================
-% Section 5: Exact Algorithm
+% Section 5: Exact Algorithm (Branch & Bound)
 % =============================================================================
-\section{Exact Algorithm}
+\section{Exact Algorithm: Branch \& Bound}
 
-\begin{frame}{Exact Algorithm: Branch \& Bound (B\&B)}
-    We solve JSSP optimally using a systematic enumeration of the search space based on the \textbf{Disjunctive Graph} model.
+\begin{frame}{B\&B: Initialization \& Upper Bound}
+    \scriptsize
+    \begin{algorithmic}[1]
+        \Function{Best\_Greedy}{$jobs, num\_jobs, num\_machines$}
+            \State $best\_makespan \leftarrow \infty$
+            \State $best\_schedule \leftarrow \text{NONE}$
+            \For{$rule \in \{FIFO, SPT, LRPT, MOR\}$}
+                \State $(ms, sched) \leftarrow \text{GREEDY}(jobs, \dots, rule)$
+                \If{$ms < best\_makespan$}
+                    \State $best\_makespan \leftarrow ms$
+                    \State $best\_schedule \leftarrow sched$
+                \EndIf
+            \EndFor
+            \State \Return $(best\_makespan, best\_schedule)$
+        \EndFunction
+        
+        \Statex
+        
+        \Function{Solve\_Instance}{$jobs$}
+            \State $(greedy\_ms, \_) \leftarrow \text{BEST\_GREEDY}(jobs, \dots)$
+            \State \Return $\text{BRANCH\_AND\_BOUND}(jobs, \dots, greedy\_ms)$
+        \EndFunction
+    \end{algorithmic}
+\end{frame}
 
-    \pause
-    \vspace{0.5em}
-    \begin{itemize}[<+->]
-        \item \textbf{State Representation}: A partially scheduled graph where some machine sequences (disjunctive edges) are fixed, and others remain undirected.
-        \item \textbf{Branching}: Select a machine with unscheduled operations. Pick two operations $O_A, O_B$ requiring this machine. Create two child nodes:
-            \begin{enumerate}
-                \item Force precedence $O_A \to O_B$
-                \item Force precedence $O_B \to O_A$
-            \end{enumerate}
-        \item \textbf{Bounding}: Compute the longest path (Makespan Lower Bound) in the current directed acyclic graph.
-        \item \textbf{Pruning}: If the Lower Bound $\ge$ Current Best Makespan (Upper Bound), discard the branch.
-    \end{itemize}
+\begin{frame}{B\&B: Lower Bound Function}
+    \scriptsize
+    \begin{algorithmic}[1]
+        \Function{Lower\_Bound}{$jobs, job\_step, job\_avail, mach\_avail$}
+            \State $lb\_job \leftarrow 0$
+            \For{\text{each job } $j$}
+                \State $job\_remaining \leftarrow$ Sum of $t$ for remaining operations of $j$
+                \State $lb\_job \leftarrow \max(lb\_job, job\_avail[j] + job\_remaining)$
+            \EndFor
+            
+            \Statex
+            
+            \State $lb\_machine \leftarrow 0$
+            \For{\text{each machine } $m$}
+                \State $m\_remaining \leftarrow$ Sum of $t$ for all operations requiring $m$
+                \State $lb\_machine \leftarrow \max(lb\_machine, mach\_avail[m] + m\_remaining)$
+            \EndFor
+            
+            \State \Return $\max(lb\_job, lb\_machine)$
+        \EndFunction
+    \end{algorithmic}
+\end{frame}
 
-    \pause
-    \vspace{0.5em}
-    \textbf{Complexity}: $O(2^{N_{disjunctive}})$. Guaranties an optimal solution, but usually times out in densely constrained instances larger than $15 \times 15$.
+\begin{frame}{B\&B: Main Loop \& Pruning}
+    \scriptsize
+    \begin{algorithmic}[1]
+        \Function{Branch\_And\_Bound}{$jobs, \dots, upper\_bound$}
+            \State $best \leftarrow upper\_bound$
+            \State $Queue \leftarrow \text{empty min-heap}$
+            \State \text{PUSH } $(\text{LOWER\_BOUND}(init\_state), init\_state) \text{ to } Queue$
+            
+            \While{$Queue \text{ is not empty}$}
+                \State $(lb, state) \leftarrow \text{POP}(Queue)$
+                
+                \If{$lb \ge best$}
+                    \State \textbf{continue} \Comment{Prune this branch}
+                \EndIf
+                
+                \If{\text{all jobs finished in } $state$}
+                    \State $makespan \leftarrow \max(state.job\_avail)$
+                    \State $best \leftarrow \min(best, makespan)$
+                    \State \textbf{continue}
+                \EndIf
+                
+                \State \dots \Comment{Branching logic handled in next phase}
+            \EndWhile
+        \EndFunction
+    \end{algorithmic}
+\end{frame}
+
+\begin{frame}{B\&B: State Generation (Branching)}
+    \scriptsize 
+    \begin{algorithmic}[1]
+        \State \dots \Comment{Inside the While Loop}
+        \For{\text{each job } $j$}
+            \If{\text{job } $j \text{ is finished}$} \textbf{continue} \EndIf
+            
+            \State $(m, t) \leftarrow \text{next operation of job } j$
+            \State $start \leftarrow \max(state.job\_avail[j], state.mach\_avail[m])$
+            \State $finish \leftarrow start + t$
+            
+            \State $child \leftarrow \text{COPY}(state)$
+            \State $child.job\_step[j] \mathrel{+}= 1$
+            \State $child.job\_avail[j] \leftarrow finish$; \quad $child.mach\_avail[m] \leftarrow finish$
+            
+            \State $child\_lb \leftarrow \text{LOWER\_BOUND}(child)$
+            
+            \If{$child\_lb < best$}
+                \State \text{PUSH } $(child\_lb, child) \text{ to } Queue$
+            \EndIf
+        \EndFor
+    \end{algorithmic}
 \end{frame}
 
 % =============================================================================
@@ -237,107 +315,89 @@
 % =============================================================================
 \section{MWKR Algorithm}
 
-\begin{frame}{Heuristic: Most Work Remaining (MWKR)}
-    \textbf{Concept}: The scheduling algorithm uses the Most Work Remaining (MWKR) dispatching rule. At each scheduling step, the job with the maximum remaining processing time is selected and its next operation is scheduled at the earliest feasible start time considering machine and job availability. The implementation uses a priority queue to efficiently select the job with highest priority.
-
-    \vspace{0.5em}
-    \textbf{Time Complexity}: $O(O_{total} \log O_{total})$ per instance using a priority queue. Extremely fast, but myopic (leads to suboptimal makespans).
-
-    \vspace{0.5em}
-    \textbf{Motivation}: Pinedo, M. (2016). Scheduling: Theory, Algorithms, and Systems.
-\end{frame}
-
-\begin{frame}{Heuristic: Most Work Remaining (MWKR)}
+\begin{frame}{MWKR Algorithm}
+    \textbf{Most Work Remaining (MWKR)}: A greedy Priority Dispatching Rule (PDR) that schedules the operation belonging to the job with the maximum total remaining processing time.
     
-    MWKR\_Schedule(n, m, machines, processing)
-    
+    \vspace{0.5em}
+    \scriptsize
     \begin{algorithmic}[1]
-        \State Compute remaining work for all jobs
-        \State Insert jobs into priority queue (max remaining work) \\
-        \While{jobs remain}
-            \State select job \textbf{j} with largest remaining work
-            \State op ← next operation of job \textbf{j}
-            \State machine ← required machine
-        
-            \State start ← max(machine\_free, job\_ready)
-            \State finish ← start + processing\_time
-        
-            \State update machine and job availability
-            \State update remaining work of job \textbf{j}
-        
-            \If{job has more operations}
-                \State reinsert into queue
+        \State $t \leftarrow 0$, $S \leftarrow$ \{First operations of all jobs\}
+        \While{Not all ops scheduled}
+            \State Find machine $M_k$ free at time $t$
+            \State Let $A \subseteq S$ be operations requiring $M_k$
+            \If{$A$ is empty}
+                \State $t \leftarrow$ next completion time; \textbf{continue}
             \EndIf
+            \State \textbf{Select} $O_{ij} \in A$ maximizing $\sum_{x=j}^{n_i} p_{ix}$
+            \State Schedule $O_{ij}$; $S \leftarrow (S \setminus \{O_{ij}\}) \cup \{O_{i,j+1}\}$
         \EndWhile
     \end{algorithmic}
-    
 \end{frame}
-
 
 % =============================================================================
 % Slide 6.1: Problem + first scheduling steps
 % =============================================================================
-\begin{frame}{MWKR Scheduling Simulation}
-    \begin{block}{Problem: Jobs and Operations}
-        \small
-        \begin{tabular}{c|ccc}
-            Operation & J1(10) & J2(9) & J3(9) \\
-            \hline
-            1 & M1:6 & M3:6 & M1:4 \\
-            2 & M2:3 & M2:1 & M2:3 \\
-            3 & M3:1 & M1:2 & M3:2 \\
-        \end{tabular}
-    \end{block}
-    
-    \pause 
-    
-    \begin{block}{Scheduling Steps}
-        \small
-        \begin{tabular}{c|c|c|c}
-            Step & Scheduled Operation & Start & Finish \\
-            \hline
-            1 & J1-M1 & 0 & 6 (J1(10) $>$ J3(9)) \\
-            2 & J2-M3 & 0 & 6                    \\
-            3 & J3-M1 & 6 & 10                   \\
-            4 & J1-M2 & 6 & 9 (J1(4) $>$ J2(3))  \\
-            5 & J1-M3 & 9 & 10                    \\
-        \end{tabular}
-    \end{block}
+\begin{frame}{MWKR Scheduling Simulation (Part 1)}
+\begin{block}{Problem: Jobs and Operations}
+\small
+\begin{tabular}{c|ccc}
+Operation & J1 & J2 & J3 \\
+\hline
+1 & M1:4 & M2:5 & M3:3 \\
+2 & M2:3 & M3:2 & M1:2 \\
+3 & M3:2 & M1:1 & M2:4 \\
+\end{tabular}
+\end{block}
+
+\pause 
+
+\begin{block}{Scheduling Steps}
+\small
+\begin{tabular}{c|c|c|c}
+Step & Scheduled Operation & Start & Finish \\
+\hline
+1 & J1-M1 & 0 & 4 \\
+2 & J2-M2 & 0 & 5 \\
+3 & J3-M3 & 0 & 3 \\
+4 & J1-M2 & 4 & 7 \\
+5 & J2-M3 & 5 & 7 \\
+\end{tabular}
+\end{block}
 
 \end{frame}
 
 % =============================================================================
 % Slide 6.2: Continue scheduling and result
 % =============================================================================
-\begin{frame}{MWKR Scheduling Simulation}
-    \begin{block}{Problem: Jobs and Operations}
-        \small
-        \begin{tabular}{c|ccc}
-            Operation & J1(10) & J2(9) & J3(9) \\
-            \hline
-            1 & M1:6 & M3:6 & M1:4 \\
-            2 & M2:3 & M2:1 & M2:3 \\
-            3 & M3:1 & M1:2 & M3:2 \\
-        \end{tabular}
-    \end{block}
-    
-    \pause
-    
-    \begin{block}{Scheduling Steps}
-        \small
-        \begin{tabular}{c|c|c|c}
-            Step & Scheduled Operation & Start & Finish \\
-            \hline
-            6 & J3-M2 & 9 & 12 (J3(4) $>$ J2(3)) \\
-            7 & J2-M2 & 12 & 13 \\
-            8 & J3-M3 & 12 & 14 \\
-            9 & J2-M1 & 13 & 15 \\
-        \end{tabular}
-    \end{block}
-    \pause
-    \begin{block}{Result}
-        \textbf{Makespan} = 15
-    \end{block}
+\begin{frame}{MWKR Scheduling Simulation (Part 2)}
+\begin{block}{Problem: Jobs and Operations}
+\small
+\begin{tabular}{c|ccc}
+Operation & J1 & J2 & J3 \\
+\hline
+1 & M1:4 & M2:5 & M3:3 \\
+2 & M2:3 & M3:2 & M1:2 \\
+3 & M3:2 & M1:1 & M2:4 \\
+\end{tabular}
+\end{block}
+
+\pause
+
+\begin{block}{Scheduling Steps}
+\small
+\begin{tabular}{c|c|c|c}
+Step & Scheduled Operation & Start & Finish \\
+\hline
+6 & J3-M1 & 4 & 6 \\
+7 & J1-M3 & 7 & 9 \\
+8 & J2-M1 & 7 & 8 \\
+9 & J3-M2 & 6 & 10 \\
+\end{tabular}
+\end{block}
+\pause
+\begin{block}{Result}
+\textbf{Makespan} = 10
+\end{block}
 \end{frame}
 
 % =============================================================================
@@ -356,7 +416,7 @@
 \end{frame}
 
 \begin{frame}{Simulated Annealing Pseudocode}
-    \small
+    \scriptsize
     \begin{algorithmic}[1]
         \State $S \leftarrow \text{RandomSchedule()}$ 
         \State $T \leftarrow T_0$
