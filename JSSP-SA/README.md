@@ -73,17 +73,33 @@ JSSP-SA/
 
 ## Usage
 
-```bash
-# Run from the JSSP-SA directory (defaults to Data/starjob_1k.json)
-python JSSP_SA/sa.py
+Run from the `JSSP-SA/` directory:
 
-# Custom dataset path and time limit (seconds per instance)
-python JSSP_SA/sa.py Data/starjob_1k.json 2.0
+```bash
+# All defaults (dataset: ../Data/starjob_1k.json, 1 s per instance, α = 0.95)
+python sa.py
+
+# Custom time limit
+python sa.py -t 2.0
+
+# All options
+python sa.py -i ../Data/starjob_1k.json -o results.csv -t 2.0 -a 0.98
 ```
+
+### CLI arguments
+
+| Flag | Description | Default |
+|---|---|---|
+| `-i` / `--input` | Path to JSON dataset | `../Data/starjob_1k.json` |
+| `-o` / `--output` | Output CSV file | `results.csv` |
+| `-t` / `--time-limit` | Wall-clock seconds per instance | `1.0` |
+| `-a` / `--alpha` | Geometric cooling rate | `0.95` |
+
+Run `python sa.py -h` for the built-in help.
 
 ### Output
 
-A CSV file `results.csv` with columns:
+A CSV file (default `results.csv`) with columns:
 
 | Column | Description |
 |---|---|
