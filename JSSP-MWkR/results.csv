@@ -1,4 +1,4 @@
-instance_id,raw_result,accuracy,runtime_seconds
+instance_id,raw_result,accuracy,time_required
 1,10921,66.61,0.000926
 2,10842,73.84,0.000465
 3,5738,75.95,0.000336
