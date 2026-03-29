@@ -58,9 +58,9 @@
 \section{Problem Description}
 
 \begin{frame}{Problem Definition}
-    The \textbf{Job Shop Scheduling Problem (JSSP)} is a combinatorial optimization problem aiming to allocate shared resources over time to competing tasks.
+    % The \textbf{Job Shop Scheduling Problem (JSSP)} is a combinatorial optimization problem aiming to allocate shared resources over time to competing tasks.
 
-    \vspace{0.5em}
+    % \vspace{0.5em}
     \begin{block}{Mathematical Formulation}
         \begin{itemize}[<+->]
             \item \textbf{Given}: A set of $N_J$ jobs $\mathcal{J} = \{J_1, \dots, J_n\}$ and $N_M$ machines $\mathcal{M} = \{M_1, \dots, M_m\}$.
@@ -229,7 +229,7 @@
 
     \pause
     \vspace{0.5em}
-    \textbf{Complexity}: Worst-case $O(2^{N_{disjunctive}})$. It guarantees an optimal solution but typically times out on densely constrained instances larger than $15 \times 15$.
+    \textbf{Complexity}: $O(2^{N_{disjunctive}})$. Guaranties an optimal solution, but usually times out in densely constrained instances larger than $15 \times 15$.
 \end{frame}
 
 % =============================================================================
@@ -238,92 +238,106 @@
 \section{MWKR Algorithm}
 
 \begin{frame}{Heuristic: Most Work Remaining (MWKR)}
-    \textbf{Concept}: A greedy Priority Dispatching Rule (PDR). When a machine is free, select the available operation whose job has the maximum total processing time remaining.
+    \textbf{Concept}: The scheduling algorithm uses the Most Work Remaining (MWKR) dispatching rule. At each scheduling step, the job with the maximum remaining processing time is selected and its next operation is scheduled at the earliest feasible start time considering machine and job availability. The implementation uses a priority queue to efficiently select the job with highest priority.
 
-    \pause
     \vspace{0.5em}
+    \textbf{Time Complexity}: $O(O_{total} \log O_{total})$ per instance using a priority queue. Extremely fast, but myopic (leads to suboptimal makespans).
+
+    \vspace{0.5em}
+    \textbf{Motivation}: Pinedo, M. (2016). Scheduling: Theory, Algorithms, and Systems.
+\end{frame}
+
+\begin{frame}{Heuristic: Most Work Remaining (MWKR)}
+    
+    MWKR\_Schedule(n, m, machines, processing)
+    
     \begin{algorithmic}[1]
-        \State $t \leftarrow 0$, $S \leftarrow$ \{First operations of all jobs\}
-        \While{Not all ops scheduled}
-            \State Find machine $M_k$ free at time $t$
-            \State Let $A \subseteq S$ be operations requiring $M_k$
-            \If{$A$ is empty}
-                \State $t \leftarrow$ next completion time; \textbf{continue}
+        \State Compute remaining work for all jobs
+        \State Insert jobs into priority queue (max remaining work) \\
+        \While{jobs remain}
+            \State select job \textbf{j} with largest remaining work
+            \State op ← next operation of job \textbf{j}
+            \State machine ← required machine
+        
+            \State start ← max(machine\_free, job\_ready)
+            \State finish ← start + processing\_time
+        
+            \State update machine and job availability
+            \State update remaining work of job \textbf{j}
+        
+            \If{job has more operations}
+                \State reinsert into queue
             \EndIf
-            \State \textbf{Select} $O_{ij} \in A$ maximizing $\sum_{x=j}^{n_i} p_{ix}$ \textit{(MWKR Rule)}
-            \State Schedule $O_{ij}$; $S \leftarrow (S \setminus \{O_{ij}\}) \cup \{O_{i,j+1}\}$
         \EndWhile
     \end{algorithmic}
     
-    \pause
-    \vspace{0.5em}
-    \textbf{Time Complexity}: $O(O_{total} \log O_{total})$ per instance using a priority queue. Extremely fast, but myopic (leads to suboptimal makespans).
 \end{frame}
+
 
 % =============================================================================
 % Slide 6.1: Problem + first scheduling steps
 % =============================================================================
-\begin{frame}{MWKR Scheduling Simulation (Part 1)}
-\begin{block}{Problem: Jobs and Operations}
-\small
-\begin{tabular}{c|ccc}
-Operation & J1 & J2 & J3 \\
-\hline
-1 & M1:4 & M2:5 & M3:3 \\
-2 & M2:3 & M3:2 & M1:2 \\
-3 & M3:2 & M1:1 & M2:4 \\
-\end{tabular}
-\end{block}
-
-\pause 
-
-\begin{block}{Scheduling Steps}
-\small
-\begin{tabular}{c|c|c|c}
-Step & Scheduled Operation & Start & Finish \\
-\hline
-1 & J1-M1 & 0 & 4 \\
-2 & J2-M2 & 0 & 5 \\
-3 & J3-M3 & 0 & 3 \\
-4 & J1-M2 & 4 & 7 \\
-5 & J2-M3 & 5 & 7 \\
-\end{tabular}
-\end{block}
+\begin{frame}{MWKR Scheduling Simulation}
+    \begin{block}{Problem: Jobs and Operations}
+        \small
+        \begin{tabular}{c|ccc}
+            Operation & J1(10) & J2(9) & J3(9) \\
+            \hline
+            1 & M1:6 & M3:6 & M1:4 \\
+            2 & M2:3 & M2:1 & M2:3 \\
+            3 & M3:1 & M1:2 & M3:2 \\
+        \end{tabular}
+    \end{block}
+    
+    \pause 
+    
+    \begin{block}{Scheduling Steps}
+        \small
+        \begin{tabular}{c|c|c|c}
+            Step & Scheduled Operation & Start & Finish \\
+            \hline
+            1 & J1-M1 & 0 & 6 (J1(10) $>$ J3(9)) \\
+            2 & J2-M3 & 0 & 6                    \\
+            3 & J3-M1 & 6 & 10                   \\
+            4 & J1-M2 & 6 & 9 (J1(4) $>$ J2(3))  \\
+            5 & J1-M3 & 9 & 10                    \\
+        \end{tabular}
+    \end{block}
 
 \end{frame}
 
 % =============================================================================
 % Slide 6.2: Continue scheduling and result
 % =============================================================================
-\begin{frame}{MWKR Scheduling Simulation }
-\begin{block}{Problem: Jobs and Operations}
-\small
-\begin{tabular}{c|ccc}
-Operation & J1 & J2 & J3 \\
-\hline
-1 & M1:4 & M2:5 & M3:3 \\
-2 & M2:3 & M3:2 & M1:2 \\
-3 & M3:2 & M1:1 & M2:4 \\
-\end{tabular}
-\end{block}
-
-\pause
-
-\begin{block}{Scheduling Steps}
-\small
-\begin{tabular}{c|c|c|c}
-Step & Scheduled Operation & Start & Finish \\
-\hline
-6 & J3-M1 & 4 & 6 \\
-7 & J1-M3 & 7 & 9 \\
-8 & J2-M1 & 7 & 8 \\
-9 & J3-M2 & 6 & 10 \\
-\end{tabular}
-\end{block}
-\pause
-\begin{block}{Result}
-\textbf{Makespan} = 10
-\end{block}
+\begin{frame}{MWKR Scheduling Simulation}
+    \begin{block}{Problem: Jobs and Operations}
+        \small
+        \begin{tabular}{c|ccc}
+            Operation & J1(10) & J2(9) & J3(9) \\
+            \hline
+            1 & M1:6 & M3:6 & M1:4 \\
+            2 & M2:3 & M2:1 & M2:3 \\
+            3 & M3:1 & M1:2 & M3:2 \\
+        \end{tabular}
+    \end{block}
+    
+    \pause
+    
+    \begin{block}{Scheduling Steps}
+        \small
+        \begin{tabular}{c|c|c|c}
+            Step & Scheduled Operation & Start & Finish \\
+            \hline
+            6 & J3-M2 & 9 & 12 (J3(4) $>$ J2(3)) \\
+            7 & J2-M2 & 12 & 13 \\
+            8 & J3-M3 & 12 & 14 \\
+            9 & J2-M1 & 13 & 15 \\
+        \end{tabular}
+    \end{block}
+    \pause
+    \begin{block}{Result}
+        \textbf{Makespan} = 15
+    \end{block}
 \end{frame}
 
 % =============================================================================
