@@ -10,11 +10,10 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{tikz}
-\usepackage{pgfplots}
+\usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{colortbl}
 \usetikzlibrary{calc, shapes.geometric, intersections, positioning, fit}
-\pgfplotsset{compat=1.17}
 
 % --- Custom Block Colors ---
 \definecolor{MyHeaderBG}{RGB}{120, 20, 20}   
@@ -30,7 +29,7 @@
     2005003 - A.H.M Towfique Mahmud \\
     2005004 - Md Zim Mim Siddiqee Sowdha \\
     2005006 - Kowshik Saha Kabya \\
-    2005035 - Md Rafiul Islam Nijami \\
+    2005035 - Md Rafiul Islam Nijamy \\
     2005055 - Ha Meem \\
     2005111 - Sadnam Faiyaz
 }
@@ -58,9 +57,9 @@
 \section{Problem Description}
 
 \begin{frame}{Problem Definition}
-    The \textbf{Job Shop Scheduling Problem (JSSP)} is a combinatorial optimization problem aiming to allocate shared resources over time to competing tasks.
+    % The \textbf{Job Shop Scheduling Problem (JSSP)} is a combinatorial optimization problem aiming to allocate shared resources over time to competing tasks.
 
-    \vspace{0.5em}
+    % \vspace{0.5em}
     \begin{block}{Mathematical Formulation}
         \begin{itemize}[<+->]
             \item \textbf{Given}: A set of $N_J$ jobs $\mathcal{J} = \{J_1, \dots, J_n\}$ and $N_M$ machines $\mathcal{M} = \{M_1, \dots, M_m\}$.
@@ -438,67 +437,73 @@ Step & Scheduled Operation & Start & Finish \\
 % =============================================================================
 \section{Results}
 
-\begin{frame}{Experimental Results (1,000 Starjob Instances)}
-    We evaluated the algorithms on average deviation from the known lower bounds.
-    
+\begin{frame}{Experimental Results (1,000 Instances)}
     \vspace{1em}
     \centering
-    \begin{tabular}{l c c c}
+    
+    { % Scope to apply smaller font and tighter column spacing just for the table
+    \scriptsize 
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{l c c c c}
         \toprule
-        \textbf{Algorithm} & \textbf{Avg Makespan} & \textbf{Gap to Best (\%)} & \textbf{Avg Time (s)} \\
+        \textbf{Algorithm} & \textbf{Avg Acc (\%)} & \textbf{Acc Range (\%)} & \textbf{Avg Time (s)} & \textbf{Time Range (s)} \\
         \midrule
-        Exact (B\&B)* & 1245.3 & \textbf{0.00\%} & Timeout \\
-        MWKR & 1762.1 & 41.50\% & \textbf{0.02} \\
-        \rowcolor{green!10} Simulated Annealing & \textbf{1420.5} & \textbf{14.06\%} & 5.40 \\
+        Branch \& Bound & 86.83 & 70.00 -- 100.00 & 0.6705 & 0.0340 -- 1.0374 \\
+        MWkR            & 70.65 & 55.48 -- 90.05  & 0.0008 & 0.0002 -- 0.0046 \\
+        \rowcolor{green!10} Sim. Annealing  & \textbf{88.20} & \textbf{72.91 -- 100.00} & 2.0627 & 1.0661 -- 2.4109 \\
         \bottomrule
     \end{tabular}
+    }
     
-    \vspace{0.5em}
-    \footnotesize \textit{*B\&B metrics calculated only on the "Small" subset ($<10\times10$) due to timeouts.}
+    \vspace{2em}
+    \small
+    \begin{itemize}
+        \item Tested on 1,000 randomly sampled instances from the Starjob dataset.
+        \item \textbf{Accuracy} is measured relative to the best known lower/upper bounds.
+    \end{itemize}
 \end{frame}
 
-\begin{frame}{Performance Visualization}
+\begin{frame}{Performance Visualization: Averages}
     \begin{columns}
         \column{0.5\textwidth}
         \centering
-        \textbf{SA Convergence}
+        \textbf{Average Accuracy}
         
         \vspace{0.5em}
-        \begin{tikzpicture}[scale=0.65]
-            \begin{axis}[
-                xlabel={Iterations},
-                ylabel={Makespan},
-                ymin=1200, ymax=1800,
-                legend pos=north east,
-                grid=both
-            ]
-            \addplot[thick, blue, domain=0:100] {1350 + 400*exp(-0.05*x)};
-            \addlegendentry{Sim. Annealing}
-            \end{axis}
-        \end{tikzpicture}
+        \includegraphics[width=0.9\textwidth]{Plots/avg_accuracy_comparison.png}
         
         \column{0.5\textwidth}
         \centering
-        \textbf{Time vs Problem Size}
+        \textbf{Average Runtime}
         
         \vspace{0.5em}
-        \begin{tikzpicture}[scale=0.65]
-            \begin{axis}[
-                ybar,
-                symbolic x coords={Small, Medium, Large},
-                xtick=data,
-                ylabel={Time (Log scale)},
-                ymode=log,
-                enlarge x limits=0.2,
-                bar width=12pt,
-                legend pos=north west
-            ]
-            \addplot coordinates {(Small, 0.5) (Medium, 35) (Large, 800)}; % B&B
-            \addplot coordinates {(Small, 0.01) (Medium, 0.05) (Large, 0.2)}; % MWKR
-            \addplot coordinates {(Small, 0.5) (Medium, 5.4) (Large, 15.5)}; % SA
-            \legend{B\&B, MWKR, SA}
-            \end{axis}
-        \end{tikzpicture}
+        \includegraphics[width=0.9\textwidth]{Plots/avg_time_comparison.png}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Performance Visualization: Distributions}
+    \centering
+    \textbf{Accuracy Distribution across Instances}
+    
+    \vspace{0.5em}
+    \includegraphics[width=0.8\textwidth]{Plots/accuracy_distribution.png}
+\end{frame}
+
+\begin{frame}{Performance Visualization: Per-Instance Analysis}
+    \begin{columns}
+        \column{0.5\textwidth}
+        \centering
+        \textbf{Per-Instance Accuracy}
+        
+        \vspace{0.5em}
+        \includegraphics[width=0.9\textwidth]{Plots/per_instance_accuracy.png}
+        
+        \column{0.5\textwidth}
+        \centering
+        \textbf{Per-Instance Runtime}
+        
+        \vspace{0.5em}
+        \includegraphics[width=0.9\textwidth]{Plots/per_instance_runtime.png}
     \end{columns}
 \end{frame}
 
@@ -507,21 +512,23 @@ Step & Scheduled Operation & Start & Finish \\
 % =============================================================================
 \section{Conclusions \& Limitations}
 
-\begin{frame}{Conclusions \& Limitations}
+\begin{frame}{Conclusions}
     \begin{block}{Key Takeaways}
         \begin{itemize}[<+->]
-            \item \textbf{MWKR} is computationally trivial but suffers from significant sub-optimality due to myopic routing.
-            \item \textbf{Exact Algorithms} provide absolute truth but are completely non-viable for industrial-scale data ($>15$ machines).
-            \item \textbf{Simulated Annealing} provides a highly effective balance, yielding near-optimal results compared to greedy MWKR while remaining computationally feasible for large instances.
+            \item \textbf{MWKR} is blazing fast ($\sim 0.8$ ms) but highly sub-optimal ($\sim 70.6\%$ accuracy) due to myopic routing decisions.
+            \item \textbf{Branch \& Bound} operates relatively quickly ($\sim 0.67$ s) by effectively pruning the search space, but early stopping constraints result in an average accuracy of $\sim 86.8\%$.
+            \item \textbf{Simulated Annealing} achieves the highest overall accuracy ($\sim 88.2\%$) by successfully balancing exploration and exploitation, trading off with the highest computational cost ($\sim 2.06$ s).
         \end{itemize}
     \end{block}
-    
-    \pause
-    \vspace{0.5em}
+\end{frame}
+
+\begin{frame}{Limitations \& Future Work}
     \textbf{Limitations \& Future Work}:
+    \vspace{0.5em}
     \begin{itemize}[<+->]
-        \item Parameter tuning for SA (cooling rate, initial temp) was done empirically.
-        \item \textbf{Algorithmic Enhancements}: We implemented the standard SA algorithm. Modifying the search space (e.g., adding a Tabu list to prevent cycling) or employing hybrid initialization (seeding the SA with the MWKR schedule) could further reduce the optimality gap.
+        \item \textbf{Time-Bounded Branch \& Bound}: To keep experiments computationally feasible across 1,000 instances, we imposed a strict time limit on the B\&B algorithm. Increasing this timeout threshold would allow deeper exploration of the search tree, likely improving its accuracy well beyond $86.8\%$.
+        \item \textbf{Empirical Parameter Tuning}: Hyperparameters for Simulated Annealing (cooling rate, initial temperature) were selected empirically and may not be globally optimal across all problem complexities.
+        \item \textbf{Algorithmic Enhancements}: We evaluated standard implementations. Employing hybrid initialization (e.g., seeding SA with the MWKR schedule) or advanced pruning constraints for B\&B could further close the optimality gap.
     \end{itemize}
 \end{frame}
 

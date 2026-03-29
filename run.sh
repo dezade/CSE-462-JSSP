@@ -65,7 +65,7 @@ echo ""
 # ─────────────────────────────────────────────────────────────
 info "Step 4/6 — Running Simulated Annealing solver (JSSP-SA) ..."
 cd "$ROOT_DIR/JSSP-SA"
-if python sa.py; then
+if python sa.py -t 2.0; then
     ok "Simulated Annealing completed. Results → JSSP-SA/results.csv"
 else
     fail "Simulated Annealing solver failed."
