@@ -8,6 +8,44 @@ def compute_remaining_work(processing):
     return [sum(job) for job in processing]
 
 
+def select_job(pq, processing, job_next_op, remaining_work):
+    """
+    Select job using:
+    1. Most Work Remaining (MWKR)
+    2. Shortest Processing Time (SPT) tie-breaker
+    """
+
+    if not pq:
+        return None
+
+    # Extract jobs currently in heap
+    jobs = [j for (_, j) in pq]
+
+    # Find maximum remaining work
+    max_rw = max(remaining_work[j] for j in jobs)
+
+    # Candidate jobs with maximum remaining work
+    candidates = [j for j in jobs if remaining_work[j] == max_rw]
+
+    # Tie-break using shortest next operation
+    best_job = None
+    best_time = float("inf")
+
+    for j in candidates:
+        op = job_next_op[j]
+
+        if op >= len(processing[j]):
+            continue
+
+        duration = processing[j][op]
+
+        if duration < best_time:
+            best_time = duration
+            best_job = j
+
+    return best_job
+
+
 def run_mwr(num_jobs, num_machines, machines, processing):
 
     machine_available = [0] * num_machines
@@ -22,9 +60,17 @@ def run_mwr(num_jobs, num_machines, machines, processing):
 
     while pq:
 
-        _, j = heapq.heappop(pq)
+        j = select_job(pq, processing, job_next_op, remaining_work)
+
+        if j is None:
+            break
+
+        # Remove selected job from heap
+        pq = [item for item in pq if item[1] != j]
+        heapq.heapify(pq)
 
         op = job_next_op[j]
+
         if op >= len(processing[j]):
             continue
 
@@ -103,7 +149,7 @@ def main():
 
     json_path = "../Data/starjob_1k.json"
 
-    run_dataset(json_path, output_csv="results.csv")
+    run_dataset(json_path, output_csv="results_updated.csv")
 
 
 if __name__ == "__main__":
