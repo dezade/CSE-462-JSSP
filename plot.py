@@ -30,23 +30,41 @@ import numpy as np
 # ──────────────────────────────────────────────────────────────
 
 METHODS = {
-    "Branch & Bound": {
+    "Exact (Original)": {
         "csv": "JSSP-Exact/results.csv",
         "acc_col": "accuracy",
         "time_col": "time_required(sec)",
         "color": "#6366f1",       # indigo-500
     },
-    "Simulated Annealing": {
-        "csv": "JSSP-SA/results.csv",
+    "Exact (Modified)": {
+        "csv": "JSSP-Exact/results_modified.csv",
+        "acc_col": "accuracy",
+        "time_col": "time_required",
+        "color": "#818cf8",       # indigo-400
+    },
+    "SA (Original)": {
+        "csv": "JSSP-SA/results_original.csv",
         "acc_col": "accuracy",
         "time_col": "time_required",
         "color": "#f59e0b",       # amber-500
     },
-    "MWkR": {
-        "csv": "JSSP-MWkR/results.csv",
+    "SA (Improved)": {
+        "csv": "JSSP-SA/results_improved.csv",
         "acc_col": "accuracy",
         "time_col": "time_required",
+        "color": "#fbbf24",       # amber-400
+    },
+    "MWkR (Original)": {
+        "csv": "JSSP-MWkR/results.csv",
+        "acc_col": "accuracy",
+        "time_col": "runtime_seconds",
         "color": "#10b981",       # emerald-500
+    },
+    "MWkR (Updated)": {
+        "csv": "JSSP-MWkR/results_updated.csv",
+        "acc_col": "accuracy",
+        "time_col": "runtime_seconds",
+        "color": "#34d399",       # emerald-400
     },
 }
 
@@ -112,10 +130,11 @@ def plot_avg_time(data):
                 fontweight="semibold")
 
     _apply_style(ax, "Average Runtime per Instance", "Time (seconds)")
+    ax.tick_params(axis='x', rotation=90)
     fig.tight_layout()
     fig.savefig(os.path.join(PLOT_DIR, "avg_time_comparison.png"), dpi=200)
     plt.close(fig)
-    print("  ✓ avg_time_comparison.png")
+    print("  * avg_time_comparison.png")
 
 
 # ──────────────────────────────────────────────────────────────
@@ -140,10 +159,11 @@ def plot_avg_accuracy(data):
 
     _apply_style(ax, "Average Accuracy per Instance", "Accuracy (%)")
     ax.set_ylim(0, 105)
+    ax.tick_params(axis='x', rotation=90)
     fig.tight_layout()
     fig.savefig(os.path.join(PLOT_DIR, "avg_accuracy_comparison.png"), dpi=200)
     plt.close(fig)
-    print("  ✓ avg_accuracy_comparison.png")
+    print("  * avg_accuracy_comparison.png")
 
 
 # ──────────────────────────────────────────────────────────────
@@ -212,7 +232,7 @@ def plot_instance_accuracy(data):
     fig.tight_layout()
     fig.savefig(os.path.join(PLOT_DIR, "per_instance_accuracy.png"), dpi=200)
     plt.close(fig)
-    print("  ✓ per_instance_accuracy.png")
+    print("  * per_instance_accuracy.png")
 
 
 # ──────────────────────────────────────────────────────────────
@@ -239,7 +259,7 @@ def plot_instance_time(data):
     fig.tight_layout()
     fig.savefig(os.path.join(PLOT_DIR, "per_instance_runtime.png"), dpi=200)
     plt.close(fig)
-    print("  ✓ per_instance_runtime.png")
+    print("  * per_instance_runtime.png")
 
 
 # ──────────────────────────────────────────────────────────────
@@ -267,7 +287,7 @@ def plot_sorted_accuracy(data):
     fig.tight_layout()
     fig.savefig(os.path.join(PLOT_DIR, "accuracy_distribution.png"), dpi=200)
     plt.close(fig)
-    print("  ✓ accuracy_distribution.png")
+    print("  * accuracy_distribution.png")
 
 
 # ──────────────────────────────────────────────────────────────
