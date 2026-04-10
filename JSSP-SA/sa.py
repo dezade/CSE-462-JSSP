@@ -452,6 +452,140 @@ def compute_makespan_and_all_critical_swaps(n_jobs, n_mach, duration,
 
 
 # ─────────────────────────────────────────────────────────────
+# Schedule evaluation — ALL CRITICAL PATHS + BLOCK-BOUNDARY
+# ─────────────────────────────────────────────────────────────
+
+def compute_makespan_and_all_critical_block_swaps(
+        n_jobs, n_mach, duration, op_machine, machine_order):
+    """
+    All-critical-paths evaluation with block-boundary filtering.
+
+    Combines the backward-tail computation (identifying every critical
+    disjunctive arc on *any* critical path) with Nowicki & Smutnicki
+    block-boundary pruning (discarding provably non-improving interior
+    swaps within each critical block).
+
+    For each machine, a *critical block* is a maximal run of consecutive
+    positions where every adjacent pair is a critical arc.  Only boundary
+    swaps (first and/or last pair) are retained, following the same rules
+    as compute_makespan_and_block_swaps but applied per-machine across
+    all critical paths.
+
+    Returns ``(makespan, list_of_swap_moves)``.
+    """
+    total = n_jobs * n_mach
+    start  = [0] * total
+    finish = [0] * total
+    in_deg = [0] * total
+    mach_pred = [-1] * total
+    mach_succ = [-1] * total
+
+    for mc in range(n_mach):
+        order = machine_order[mc]
+        nops = len(order)
+        for i in range(nops):
+            oid = order[i]
+            if i > 0:
+                mach_pred[oid] = order[i - 1]
+            if i < nops - 1:
+                mach_succ[oid] = order[i + 1]
+
+    for oid in range(total):
+        d = 0
+        if oid % n_mach > 0:
+            d += 1
+        if mach_pred[oid] >= 0:
+            d += 1
+        in_deg[oid] = d
+
+    queue = deque()
+    topo_order = []
+    for oid in range(total):
+        if in_deg[oid] == 0:
+            queue.append(oid)
+
+    makespan = 0
+    while queue:
+        oid = queue.popleft()
+        topo_order.append(oid)
+        f = start[oid] + duration[oid]
+        finish[oid] = f
+        if f > makespan:
+            makespan = f
+
+        k = oid % n_mach
+        if k + 1 < n_mach:
+            s_id = oid + 1
+            if f > start[s_id]:
+                start[s_id] = f
+            in_deg[s_id] -= 1
+            if in_deg[s_id] == 0:
+                queue.append(s_id)
+
+        ms = mach_succ[oid]
+        if ms >= 0:
+            if f > start[ms]:
+                start[ms] = f
+            in_deg[ms] -= 1
+            if in_deg[ms] == 0:
+                queue.append(ms)
+
+    tail = [0] * total
+    for oid in reversed(topo_order):
+        t = 0
+        k = oid % n_mach
+        if k + 1 < n_mach:
+            s_id = oid + 1
+            v = duration[s_id] + tail[s_id]
+            if v > t:
+                t = v
+        ms = mach_succ[oid]
+        if ms >= 0:
+            v = duration[ms] + tail[ms]
+            if v > t:
+                t = v
+        tail[oid] = t
+
+    # Per-machine: find critical arcs, group into blocks, keep boundaries.
+    swaps = []
+    for mc in range(n_mach):
+        order = machine_order[mc]
+        nops = len(order)
+
+        # Bitmap of which consecutive positions form a critical arc.
+        crit = []
+        for i in range(nops - 1):
+            u = order[i]
+            v = order[i + 1]
+            if (finish[u] == start[v]
+                    and start[u] + duration[u] + tail[u] == makespan
+                    and start[v] + duration[v] + tail[v] == makespan):
+                crit.append(i)
+
+        if not crit:
+            continue
+
+        # Group consecutive critical positions into blocks and keep
+        # only boundary swaps.
+        block_start_idx = 0
+        for j in range(1, len(crit) + 1):
+            if j == len(crit) or crit[j] != crit[j - 1] + 1:
+                bs = block_start_idx
+                be = j - 1
+                block_len = be - bs + 1
+
+                if block_len == 1:
+                    swaps.append((mc, crit[bs]))
+                else:
+                    swaps.append((mc, crit[bs]))
+                    swaps.append((mc, crit[be]))
+
+                block_start_idx = j
+
+    return makespan, swaps
+
+
+# ─────────────────────────────────────────────────────────────
 # Helper: auto-calibrate initial temperature
 # ─────────────────────────────────────────────────────────────
 
@@ -599,7 +733,7 @@ def simulated_annealing_improved(n_jobs, n_mach, machines_2d, processing_2d,
     duration, op_machine = flatten_instance(
         n_jobs, n_mach, machines_2d, processing_2d)
 
-    sa_eval = compute_makespan_and_block_swaps
+    sa_eval = compute_makespan_and_all_critical_block_swaps
     hc_eval = compute_makespan_and_all_critical_swaps
 
     # ── initial solution: best of several greedy heuristics ──

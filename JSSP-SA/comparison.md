@@ -6,19 +6,19 @@ This document compares the **original** SA implementation (Van Laarhoven et al.,
 
 | Metric | Original | Improved | Delta |
 |---|---|---|---|
-| **Avg accuracy** | 87.31 % | 89.91 % | **+2.60 %** |
-| **Min accuracy** | 72.80 % | 74.86 % | +2.06 % |
+| **Avg accuracy** | 87.28 % | 90.03 % | **+2.75 %** |
+| **Min accuracy** | 72.80 % | 75.86 % | +3.06 % |
 | **Max accuracy** | 100.0 % | 100.0 % | 0.0 % |
 
 ### Per-instance breakdown (1,000 instances)
 
 | Outcome | Count |
 |---|---|
-| Improved wins | **799** |
-| Original wins | 146 |
-| Tied | 55 |
+| Improved wins | **849** |
+| Original wins | 79 |
+| Tied | 72 |
 
-The improved variant produces a better makespan on roughly **80 %** of instances.
+The improved variant produces a better makespan on roughly **85 %** of instances.
 
 ---
 
@@ -36,52 +36,52 @@ Both variants share the same core structure, which remains unchanged:
 
 ---
 
-## Change 1 &mdash; Block-Boundary N5 Neighbourhood
+## Change 1 &mdash; Block-Boundary N5 Neighbourhood across All Critical Paths
 
 ### What changed
 
 | | Original | Improved |
 |---|---|---|
-| **Swap candidates** | Every disjunctive arc found on the single traced critical path | Only the **boundary pairs** of each critical block |
-| **Evaluator function** | `compute_makespan_and_critical_swaps` | `compute_makespan_and_block_swaps` |
+| **Critical-path coverage** | Single traced critical path | **All** critical paths (via backward tail computation) |
+| **Swap candidates** | Every disjunctive arc on that single path | Only the **boundary pairs** of each critical block, across all critical paths |
+| **Evaluator function** | `compute_makespan_and_critical_swaps` | `compute_makespan_and_all_critical_block_swaps` |
 
-### What is a critical block?
+### How it works
 
-After tracing the critical path, the sequence of machine arcs on it can be partitioned into **critical blocks**: maximal consecutive subsequences where all arcs belong to the same machine.
+The evaluator combines two techniques:
+
+1. **All-critical-paths identification** &mdash; A backward tail computation (`tail[v]` = longest path from `finish[v]` to the sink) identifies *every* critical disjunctive arc across *all* machines, not just those on a single traced path. An arc (u &rarr; v) is critical iff `finish[u] == start[v]` and both endpoints satisfy `start[v] + duration[v] + tail[v] == makespan`.
+
+2. **Block-boundary filtering** &mdash; For each machine, consecutive critical arcs are grouped into **critical blocks** (maximal runs of adjacent critical positions). Interior swaps within each block are discarded; only boundary swaps are kept.
 
 ```
-Critical path (machine arcs only):
+Machine M3 operation order:  [op_a, op_b, op_c, op_d, op_e, op_f, ...]
+Critical arcs on M3:                 ✓      ✓      ✓             ✓
+                                ├── block 1 ──┤              │block 2│
 
-  Block 1 (machine 3)     Block 2 (machine 7)     Block 3 (machine 3)
-  ┌────────────────┐      ┌────────────────┐      ┌────────────────┐
-  │ a1  a2  a3  a4 │ ──── │ a5  a6  a7     │ ──── │ a8  a9         │
-  └────────────────┘      └────────────────┘      └────────────────┘
-         ▲     ▲            ▲           ▲            ▲
-       interior │          boundary   boundary     boundary
-       (skip)   boundary   (keep)     (keep)       (keep)
-                (keep)
+Block 1:  (a,b), (b,c), (c,d)  →  keep (a,b) and (c,d), discard (b,c)
+Block 2:  (e,f)                 →  keep (e,f)
 ```
 
 ### Which swaps are kept?
 
-- **First block** on the path: only the **last** pair (a4 above).
-- **Last block** on the path: only the **first** pair (a8).
-- **Interior blocks**: both **first and last** pairs (a5 and a7).
-- All interior pairs (a2, a3, a6, a9 in a multi-arc block) are **discarded**.
+For each critical block of length $k$ arcs:
+- **Single-arc blocks** ($k = 1$): the arc is kept.
+- **Multi-arc blocks** ($k \ge 2$): only the **first** and **last** arcs are kept; all interior arcs are discarded.
 
 ### Intuition
 
 Nowicki & Smutnicki (1996) proved that **interior-block swaps can never reduce the makespan**. They merely rearrange operations within a block without changing the longest path through it. Only boundary swaps can alter how the critical path enters or exits a block, potentially shortening it.
 
-By filtering out provably non-improving swaps:
+The combination of all-critical-paths coverage with block-boundary pruning gives the **smallest possible high-quality move set**:
 
-1. **Every randomly chosen move has a real chance of improvement.** The original N1 neighbourhood includes many interior-block swaps that waste an evaluation without any possibility of progress.
-2. **The SA spends its evaluation budget more efficiently.** Fewer candidate moves mean each temperature level focuses on high-quality moves.
-3. **The overhead is negligible.** The block identification is a single O(L) scan over the already-traced critical path arcs.
+1. **No improving swap is missed** due to arbitrary single-path tracing. Different critical paths may expose different critical arcs, and the all-paths evaluator captures them all.
+2. **Every randomly chosen move has a real chance of improvement.** Provably non-improving interior-block swaps are eliminated.
+3. **The cost is acceptable.** The backward tail computation adds one reverse pass over the topological order, roughly doubling the per-call cost compared to a single-path trace. However, the higher move quality more than compensates for the reduced iteration count.
 
 ### Code reference
 
-The block-boundary evaluator is implemented in `compute_makespan_and_block_swaps` (lines 210-341 of `sa.py`). The forward pass and backward trace are identical to the original; only the final swap-collection step differs.
+The combined evaluator is implemented in `compute_makespan_and_all_critical_block_swaps` (lines 458-576 of `sa.py`). It performs a forward BFS, a backward tail pass, then per-machine block identification and boundary filtering.
 
 ---
 
@@ -110,7 +110,7 @@ This cycle can repeat many times within the time budget, each time exploring a d
 
 ### Code reference
 
-The reheating logic is at lines 684-701 of `sa.py`, inside the main SA loop. The outer `while` loop is controlled solely by `time.perf_counter() - t0 < sa_deadline`.
+The reheating logic is at lines 818-835 of `sa.py`, inside the main SA loop. The outer `while` loop is controlled solely by `time.perf_counter() - t0 < sa_deadline`.
 
 ---
 
@@ -137,7 +137,7 @@ The hill-climbing phase uses two deliberate design choices:
 
 ### Code reference
 
-The hill-climbing phase is at lines 705-742 of `sa.py`. The all-critical-paths evaluator (`compute_makespan_and_all_critical_swaps`, lines 348-451) uses a forward BFS to compute `start` and `finish` arrays, then a backward pass over the reverse topological order to compute `tail` values. An operation *v* is critical iff `start[v] + duration[v] + tail[v] == makespan`. A disjunctive arc (u -> v) is a swap candidate iff both u and v are critical and `finish[u] == start[v]`.
+The hill-climbing phase is at lines 839-876 of `sa.py`. The all-critical-paths evaluator (`compute_makespan_and_all_critical_swaps`, lines 348-451) uses a forward BFS to compute `start` and `finish` arrays, then a backward pass over the reverse topological order to compute `tail` values. An operation *v* is critical iff `start[v] + duration[v] + tail[v] == makespan`. A disjunctive arc (u -> v) is a swap candidate iff both u and v are critical and `finish[u] == start[v]`.
 
 ---
 
@@ -145,7 +145,7 @@ The hill-climbing phase is at lines 705-742 of `sa.py`. The all-critical-paths e
 
 | Component | Original | Improved | Why it helps |
 |---|---|---|---|
-| **Neighbourhood** | Full N1 (all critical-path swaps) | Block-boundary N5 (boundary pairs only) | Eliminates provably non-improving moves; every random choice is productive |
+| **Neighbourhood** | Full N1 (all swaps on a single traced critical path) | Block-boundary N5 across all critical paths (boundary pairs only) | Covers all critical paths while eliminating provably non-improving interior swaps |
 | **Stagnation** | Early termination after 40 levels | Reheat to 0.4 * T_0 + restart from best with perturbation | Fully utilises time budget; explores multiple basins of attraction |
 | **Post-SA** | None | Steepest-descent hill climbing (3 % of budget) with all-critical-paths eval | Deterministic cleanup finds easy final improvements that stochastic SA missed |
 
